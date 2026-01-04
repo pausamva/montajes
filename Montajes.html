@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Calculadora Montajes Vinilo</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    body { background: #000; color: #fff; font-family: Arial; font-weight: 600; margin: 2rem; }
+    h1 { text-align: center; font-size: 1.8rem; letter-spacing: 2px; margin-bottom: 2rem; }
+    .configuracion, .cliente, .lineas-trabajo, .botones, .total, .logo { margin-top: 2rem; display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; }
+    .grupo { display: flex; flex-direction: column; }
+    .grupo label { margin-bottom: .25rem; }
+    .configuracion label, .cliente .grupo { flex: 1 1 200px; }
+    .configuracion input, .cliente input, .cliente select { padding: .4rem .6rem; border: none; border-radius: 2rem; background: #111; color: #fff; }
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+    th, td { border: 1px solid #444; padding: .5rem; text-align: center; }
+    th { background-color: #222; }
+    .botones { justify-content: center; }
+    .botones button { padding: .5rem 1rem; border: none; border-radius: 2rem; cursor: pointer; background: #3498db; color: #fff; font-weight: 700; }
+    .botones .btn-nuevo { background: #e74c3c; }
+    .botones .btn-copiar { background: #27ae60; }
+    .btn-borrar { background: #e74c3c; color: white; border: none; border-radius: 50%; font-weight: bold; font-size: 1rem; width: 2.2rem; height: 2.2rem; line-height: 1rem; cursor: pointer; }
+    .total { width: 100%; font-size: 1.6rem; text-align: center; justify-content: center; display: flex; margin-top: 2rem;}
+    .total span { font-weight: bold; }
+    .fecha { margin-bottom: 1rem; width: 100%; text-align: center; }
+    .logo { justify-content: center; width: 100%; }
+    .logo img { display: block; margin: 0 auto; max-width: 200px; }
+    .orden-compra-btn { margin: 2rem auto 0 auto; display: flex; justify-content: center; }
+    .orden-compra-btn button { background: #f9a825; color: #111; font-weight: 700; border-radius: 2rem; }
+    .observaciones-box { width: 100%; margin: 2rem 0 1rem 0; display: flex; flex-direction: column; align-items: center;}
+    .observaciones-box label { font-weight: bold; margin-bottom: .5rem;}
+    .observaciones-box textarea { width: 100%; min-height: 70px; background: #111; color: #fff; border: none; border-radius: 1rem; padding: .7rem; font-size: 1rem; resize: vertical;}
+    @media print { .botones, button, .orden-compra-btn { display: none; } input, select, textarea { border: none; } }
+  </style>
+</head>
+<body>
+  <h1>CALCULADORA MONTAJES</h1>
+  <div class="fecha" id="fecha"></div>
+
+  <div class="configuracion">
+    <label>Coste Vinilo €/m²<input type="number" id="costeM2" value="15"></label>
+    <label>Coste Limpieza €/m²<input type="number" id="costeLimpieza" value="5"></label>
+    <label>Coste Grúa €<input type="number" id="costeGrua" value="0"></label>
+    <label>Recargo Escalera %<input type="number" id="recargoEscalera" value="50"></label>
+    <label>Recargo Andamio %<input type="number" id="recargoAndamio" value="100"></label>
+    <label>Desplazamiento Valencia €<input type="number" id="despValencia" value="30"></label>
+    <label>Desplazamiento Fuera €<input type="number" id="despFuera" value="50"></label>
+    <label>% Montador<input type="number" id="porcMontador" value="60"></label>
+  </div>
+
+  <div class="cliente">
+    <div class="grupo"><label for="cliente">Cliente</label><input type="text" id="cliente"></div>
+    <div class="grupo"><label for="numPresupuesto">N.º presupuesto</label><input type="text" id="numPresupuesto"></div>
+    <div class="grupo"><label for="desplazamiento">Desplazamiento</label><select id="desplazamiento"><option value="0">No</option><option value="valencia">Valencia</option><option value="fuera">Fuera</option></select></div>
+  </div>
+
+  <div class="lineas-trabajo">
+    <table>
+      <thead>
+        <tr><th></th><th>Modelo</th><th>Descripción</th><th>m²</th><th>Altura</th><th>Limpieza</th><th>Coste</th></tr>
+      </thead>
+      <tbody id="contenido"></tbody>
+    </table>
+  </div>
+  <div class="botones">
+    <button onclick="añadirFila()">Añadir modelo</button>
+    <button onclick="window.print()">Imprimir / PDF</button>
+    <button class="btn-copiar" onclick="copiarResumen()">Copiar resumen</button>
+    <button onclick="guardarArchivo()">Guardar</button>
+    <button onclick="cargarArchivo()">Cargar</button>
+    <button class="btn-nuevo" onclick="nuevo()">Nuevo</button>
+    <input type="file" id="fileInput" style="display:none" accept=".json">
+  </div>
+
+  <div class="observaciones-box">
+    <label for="observaciones">Observaciones</label>
+    <textarea id="observaciones" placeholder="Observaciones para este presupuesto..."></textarea>
+  </div>
+
+  <div class="total"><b>Total:</b>&nbsp;<span id="total">0 €</span></div>
+
+  <div class="orden-compra-btn">
+    <button onclick="generarOrdenCompra()">Generar orden de compra</button>
+  </div>
+
+  <div class="logo"><img src="logo_reprografia_bv.png" alt="Logo Empresa"></div>
+
+<script>
+document.getElementById('fecha').textContent = 'Fecha: ' + new Date().toLocaleDateString();
+
+const recalcularIDs = [
+  'costeM2', 'costeLimpieza', 'costeGrua',
+  'recargoEscalera', 'recargoAndamio', 'despValencia', 'despFuera',
+  'porcMontador', 'cliente', 'numPresupuesto', 'desplazamiento', 'observaciones'
+];
+
+function añadirFila(data = {}) {
+  const tbody = document.getElementById('contenido');
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><button class="btn-borrar" onclick="this.closest('tr').remove();calcular();">✖</button></td>
+    <td><input type="text" value="${data.modelo||''}"></td>
+    <td><input type="text" value="${data.descripcion||''}"></td>
+    <td><input type="number" min="0" value="${data.metros||0}"></td>
+    <td><select><option>No</option><option>Escalera</option><option>Andamio</option><option>Grua</option></select></td>
+    <td><select><option>No</option><option>Sí</option></select></td>
+    <td class="coste">0 €</td>
+  `;
+  tbody.appendChild(tr);
+  if(data.altura){ tr.cells[4].querySelector('select').value = data.altura; }
+  if(data.limpieza){ tr.cells[5].querySelector('select').value = data.limpieza; }
+  [...tr.querySelectorAll('input,select')].forEach(el => el.addEventListener('change', calcular));
+  calcular();
+}
+
+recalcularIDs.forEach(id => {
+  let el = document.getElementById(id);
+  if(el) el.addEventListener('input', calcular);
+  if(el) el.addEventListener('change', calcular);
+});
+
+function calcular() {
+  let total = 0;
+  const cm2 = parseFloat(document.getElementById('costeM2').value) || 0;
+  const clp = parseFloat(document.getElementById('costeLimpieza').value) || 0;
+  const cgr = parseFloat(document.getElementById('costeGrua').value) || 0;
+  const re = parseFloat(document.getElementById('recargoEscalera').value) / 100 || 0;
+  const ra = parseFloat(document.getElementById('recargoAndamio').value) / 100 || 0;
+
+  document.querySelectorAll('#contenido tr').forEach(tr => {
+    let m = parseFloat(tr.cells[3].firstElementChild.value) || 0;
+    let alt = tr.cells[4].firstElementChild.value;
+    let lim = tr.cells[5].firstElementChild.value;
+    let coste = m * cm2;
+    if (alt === 'Escalera') coste += m * cm2 * re;
+    if (alt === 'Andamio') coste += m * cm2 * ra;
+    if (lim === 'Sí') coste += m * clp;
+    tr.cells[6].innerText = coste.toFixed(2) + ' €';
+    total += coste;
+  });
+  const dsp = document.getElementById('desplazamiento').value;
+  if (dsp === 'valencia') total += parseFloat(document.getElementById('despValencia').value) || 0;
+  if (dsp === 'fuera') total += parseFloat(document.getElementById('despFuera').value) || 0;
+  total += cgr;
+  document.getElementById('total').innerText = total.toFixed(2) + ' €';
+}
+
+function copiarResumen() {
+  let resumen = `Fecha: ${new Date().toLocaleDateString()}\n\n`;
+  resumen += `Cliente: ${document.getElementById('cliente').value}\n`;
+  resumen += `Presupuesto: ${document.getElementById('numPresupuesto').value}\n`;
+  resumen += `Desplazamiento: ${document.getElementById('desplazamiento').value}\n\n`;
+  document.querySelectorAll('#contenido tr').forEach(tr => {
+    const modelo = tr.cells[1].firstElementChild.value;
+    if (!modelo) return;
+    const desc = tr.cells[2].firstElementChild.value;
+    const m = tr.cells[3].firstElementChild.value;
+    const alt = tr.cells[4].firstElementChild.value;
+    const lim = tr.cells[5].firstElementChild.value;
+    const coste = tr.cells[6].innerText;
+    resumen += `Modelo: ${modelo}, Desc: ${desc}, m²: ${m}, Altura: ${alt}, Limpieza: ${lim}, Coste: ${coste}\n`;
+  });
+  // Añadir observaciones antes del total
+  const obs = document.getElementById('observaciones').value.trim();
+  if (obs) {
+    resumen += `\nObservaciones: ${obs}\n`;
+  }
+  resumen += `\nTOTAL: ${document.getElementById('total').innerText}`;
+  navigator.clipboard.writeText(resumen);
+}
+function guardarArchivo() {
+  const data = {
+    cliente: document.getElementById('cliente').value,
+    numPresupuesto: document.getElementById('numPresupuesto').value,
+    desplazamiento: document.getElementById('desplazamiento').value,
+    observaciones: document.getElementById('observaciones').value,
+    config: {
+      costeM2: document.getElementById('costeM2').value,
+      costeLimpieza: document.getElementById('costeLimpieza').value,
+      costeGrua: document.getElementById('costeGrua').value,
+      recargoEscalera: document.getElementById('recargoEscalera').value,
+      recargoAndamio: document.getElementById('recargoAndamio').value,
+      despValencia: document.getElementById('despValencia').value,
+      despFuera: document.getElementById('despFuera').value,
+      porcMontador: document.getElementById('porcMontador').value
+    },
+    filas: []
+  };
+  document.querySelectorAll('#contenido tr').forEach(tr => {
+    const modelo = tr.cells[1].firstElementChild.value;
+    if (!modelo) return;
+    data.filas.push({
+      modelo,
+      descripcion: tr.cells[2].firstElementChild.value,
+      metros: tr.cells[3].firstElementChild.value,
+      altura: tr.cells[4].firstElementChild.value,
+      limpieza: tr.cells[5].firstElementChild.value
+    });
+  });
+  const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${data.cliente}-${data.numPresupuesto}.json`; a.click();
+}
+
+function cargarArchivo() {
+  const input = document.getElementById('fileInput'); input.click();
+  input.onchange = () => {
+    const file = input.files[0];
+    const reader = new FileReader();
+    reader.onload = e => {
+      const d = JSON.parse(e.target.result);
+      document.getElementById('cliente').value = d.cliente || '';
+      document.getElementById('numPresupuesto').value = d.numPresupuesto || '';
+      document.getElementById('desplazamiento').value = d.desplazamiento || '0';
+      document.getElementById('observaciones').value = d.observaciones || '';
+      if(d.config){
+        document.getElementById('costeM2').value = d.config.costeM2 || '15';
+        document.getElementById('costeLimpieza').value = d.config.costeLimpieza || '5';
+        document.getElementById('costeGrua').value = d.config.costeGrua || '0';
+        document.getElementById('recargoEscalera').value = d.config.recargoEscalera || '50';
+        document.getElementById('recargoAndamio').value = d.config.recargoAndamio || '100';
+        document.getElementById('despValencia').value = d.config.despValencia || '30';
+        document.getElementById('despFuera').value = d.config.despFuera || '50';
+        document.getElementById('porcMontador').value = d.config.porcMontador || '60';
+      }
+      document.getElementById('contenido').innerHTML = '';
+      d.filas.forEach(f => añadirFila(f));
+      calcular();
+    };
+    reader.readAsText(file);
+  };
+}
+
+function nuevo() {
+  // Restaurar todos los valores a los valores por defecto
+  document.getElementById('costeM2').value = "15";
+  document.getElementById('costeLimpieza').value = "5";
+  document.getElementById('costeGrua').value = "0";
+  document.getElementById('recargoEscalera').value = "50";
+  document.getElementById('recargoAndamio').value = "100";
+  document.getElementById('despValencia').value = "30";
+  document.getElementById('despFuera').value = "50";
+  document.getElementById('porcMontador').value = "60";
+  document.getElementById('cliente').value = "";
+  document.getElementById('numPresupuesto').value = "";
+  document.getElementById('desplazamiento').value = "0";
+  document.getElementById('observaciones').value = "";
+  document.getElementById('contenido').innerHTML = '';
+  añadirFila();
+  calcular();
+}
+
+function generarOrdenCompra() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const porc = parseFloat(document.getElementById('porcMontador').value) || 0;
+  const total = parseFloat(document.getElementById('total').innerText.replace('€','').replace(',','.')) || 0;
+  const totalMontador = ((total * porc) / 100).toFixed(2);
+
+  let y = 15;
+  doc.setFontSize(14);
+  doc.text('ORDEN DE COMPRA - Montajes de Vinilo', 105, y, { align: 'center' }); y += 10;
+  doc.setFontSize(11);
+  doc.text('Fecha: ' + new Date().toLocaleDateString(), 15, y); y += 7;
+  doc.text('Cliente: ' + (document.getElementById('cliente').value || ''), 15, y); y += 7;
+  doc.text('Nº presupuesto: ' + (document.getElementById('numPresupuesto').value || ''), 15, y); y += 10;
+  // Encabezado de tabla
+  doc.setFontSize(11);
+  doc.text('Modelos:', 15, y); y += 5;
+  doc.setFont('helvetica', 'bold');
+  doc.text('Modelo', 15, y);
+  doc.text('Descripción', 55, y);
+  doc.text('m²', 115, y);
+  doc.text('Altura', 135, y);
+  doc.text('Limpieza', 155, y);
+  doc.setFont('helvetica', 'normal');
+  y += 5;
+  doc.setLineWidth(0.1); doc.line(15, y-4, 195, y-4);
+  // Filas
+  document.querySelectorAll('#contenido tr').forEach(tr => {
+    const modelo = tr.cells[1].firstElementChild.value;
+    if (!modelo) return;
+    const desc = tr.cells[2].firstElementChild.value;
+    const m = tr.cells[3].firstElementChild.value;
+    const alt = tr.cells[4].firstElementChild.value;
+    const lim = tr.cells[5].firstElementChild.value;
+    doc.text(modelo, 15, y);
+    doc.text(desc, 55, y);
+    doc.text(m, 115, y, { align: 'right' });
+    doc.text(alt, 135, y);
+    doc.text(lim, 155, y);
+    y += 7;
+    if(y > 270) { doc.addPage(); y = 20; }
+  });
+  // Observaciones antes del total montador
+  const obs = document.getElementById('observaciones').value.trim();
+  if (obs) {
+    y += 7;
+    doc.setFont('helvetica', 'bold');
+    doc.text('Observaciones:', 15, y);
+    doc.setFont('helvetica', 'normal');
+    y += 6;
+    let obsLines = doc.splitTextToSize(obs, 180);
+    doc.text(obsLines, 15, y);
+    y += obsLines.length * 6;
+  }
+  y += 5;
+  doc.setFont('helvetica', 'bold');
+  doc.text(`TOTAL MONTADOR: ${totalMontador} €`, 15, y);
+  doc.save(`orden_compra_${(document.getElementById('numPresupuesto').value||'').replace(/\s+/g,'_')}.pdf`);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  añadirFila();
+  calcular();
+  document.querySelectorAll('#contenido tr input, #contenido tr select').forEach(el => el.addEventListener('change', calcular));
+});
+</script>
+</body>
+</html>
