@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Trash2, Copy } from "lucide-react";
+import { Trash2, Copy, Paperclip } from "lucide-react";
 import type { Altura, Limpieza } from "@/core/types";
 import { PhotoUpload, PhotoGrid } from "./photo-upload";
 import { v4 as uuidv4 } from 'uuid';
@@ -151,6 +151,7 @@ export function LinesTable() {
                             <TableHead className="w-[120px]">Altura</TableHead>
                             <TableHead className="w-[100px]">Limpieza</TableHead>
                             <TableHead className="text-right">Coste</TableHead>
+                            <TableHead className="min-w-[150px]">Archivos</TableHead>
                             <TableHead className="w-[100px]">Acciones</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -218,6 +219,30 @@ export function LinesTable() {
                                         <TableCell className="text-right font-medium">
                                             {cost.toFixed(2)} €
                                         </TableCell>
+                                        <TableCell className="p-1">
+                                            <PhotoUpload
+                                                onFileAdd={(data) => addPhotoToLine(line.id, { id: uuidv4(), ...data, comentario: '' })}
+                                                trigger={
+                                                    <div className="border border-dashed rounded-md p-1.5 bg-muted/5 hover:bg-muted/20 hover:border-primary transition-all min-h-[60px] flex flex-col items-center justify-center relative group cursor-pointer">
+                                                        <PhotoGrid
+                                                            compact
+                                                            files={line.adjuntos || []}
+                                                            onRemove={(photoId) => removePhotoFromLine(line.id, photoId)}
+                                                        />
+                                                        {(!line.adjuntos || line.adjuntos.length === 0) ? (
+                                                            <div className="flex flex-col items-center justify-center py-2 text-muted-foreground transition-colors group-hover:text-primary">
+                                                                <Paperclip className="w-4 h-4 mb-1 opacity-50" />
+                                                                <span className="text-[10px] font-medium text-center leading-tight">Pulsar o arrastrar fotos</span>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="mt-1 pt-1 border-t w-full flex justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                <span className="text-[9px] text-muted-foreground font-medium">Añadir más</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                }
+                                            />
+                                        </TableCell>
                                         <TableCell>
                                             <div className="flex items-center gap-1">
                                                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => duplicateLine(line.id)}>
@@ -229,26 +254,12 @@ export function LinesTable() {
                                             </div>
                                         </TableCell>
                                     </TableRow>
-                                    {/* Photo Row */}
-                                    <TableRow>
-                                        <TableCell colSpan={8} className="p-2 pt-0 border-b">
-                                            <div className="flex flex-col gap-2">
-                                                <div className="flex items-center gap-2">
-                                                    <PhotoUpload onFileAdd={(data) => addPhotoToLine(line.id, { id: uuidv4(), ...data, comentario: '' })} />
-                                                </div>
-                                                <PhotoGrid
-                                                    files={line.adjuntos || []}
-                                                    onRemove={(photoId) => removePhotoFromLine(line.id, photoId)}
-                                                />
-                                            </div>
-                                        </TableCell>
-                                    </TableRow>
                                 </React.Fragment>
                             )
                         })}
                         {budget.lineas.length === 0 && (
                             <TableRow>
-                                <TableCell colSpan={8} className="text-center h-24 text-muted-foreground">
+                                <TableCell colSpan={9} className="text-center h-24 text-muted-foreground">
                                     No hay líneas de trabajo. Añade una para comenzar.
                                 </TableCell>
                             </TableRow>

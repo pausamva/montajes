@@ -20,6 +20,7 @@ interface AttachmentUploadProps {
 
 export function PhotoUpload({ onFileAdd, trigger }: AttachmentUploadProps) {
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [isDragging, setIsDragging] = useState(false);
 
     const optimizeImage = async (blob: Blob, maxWidth: number, quality: number): Promise<string> => {
         return new Promise((resolve) => {
@@ -53,7 +54,6 @@ export function PhotoUpload({ onFileAdd, trigger }: AttachmentUploadProps) {
             const pdf = await loadingTask.promise;
             const page = await pdf.getPage(1);
 
-            // Optimize: Limit width to 400px for better quality (but smaller for storage)
             const originalViewport = page.getViewport({ scale: 1.0 });
             const desiredWidth = 400;
             const scale = Math.min(1.0, desiredWidth / originalViewport.width);
@@ -69,7 +69,6 @@ export function PhotoUpload({ onFileAdd, trigger }: AttachmentUploadProps) {
                     canvasContext: context,
                     viewport: viewport
                 } as any).promise;
-                // High quality but reasonable size
                 return canvas.toDataURL('image/jpeg', 0.8);
             }
         } catch (error) {
@@ -78,13 +77,7 @@ export function PhotoUpload({ onFileAdd, trigger }: AttachmentUploadProps) {
         return "";
     };
 
-    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
-        // Reset input immediately
-        if (fileInputRef.current) fileInputRef.current.value = '';
-
+    const processFile = async (file: File) => {
         const isPdf = file.type === 'application/pdf';
         const type = isPdf ? 'pdf' : 'image';
 
@@ -93,11 +86,8 @@ export function PhotoUpload({ onFileAdd, trigger }: AttachmentUploadProps) {
 
         if (isPdf) {
             thumbnail = await generatePdfThumbnail(file);
-            // Only keep thumbnail, discard original PDF (save space)
             url = thumbnail;
         } else {
-            // Optimize regular image
-            // Max width 400px, Quality 0.8
             url = await optimizeImage(file, 400, 0.8);
         }
 
@@ -111,55 +101,115 @@ export function PhotoUpload({ onFileAdd, trigger }: AttachmentUploadProps) {
         });
     };
 
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(e.target.files || []);
+        if (files.length === 0) return;
+
+        if (fileInputRef.current) fileInputRef.current.value = '';
+
+        for (const file of files) {
+            await processFile(file);
+        }
+    };
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(true);
+    };
+
+    const handleDragLeave = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+    };
+
+    const handleDrop = async (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+
+        const files = Array.from(e.dataTransfer.files);
+        for (const file of files) {
+            if (file.type.startsWith('image/') || file.type === 'application/pdf') {
+                await processFile(file);
+            }
+        }
+    };
+
     return (
-        <>
+        <div
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            className="w-full"
+        >
             <input
                 type="file"
                 accept="image/*,application/pdf"
                 className="hidden"
                 ref={fileInputRef}
                 onChange={handleFileChange}
+                multiple
                 title="Seleccionar imagen o PDF"
             />
 
             {trigger ? (
-                <div onClick={() => fileInputRef.current?.click()}>
+                <div
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`cursor-pointer transition-all duration-200 ${isDragging ? "ring-2 ring-primary ring-inset rounded-lg bg-primary/10" : ""}`}
+                >
                     {trigger}
                 </div>
             ) : (
-                <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                    className={isDragging ? "ring-2 ring-primary bg-primary/10" : ""}
+                >
                     <Paperclip className="w-4 h-4 mr-2" />
                     Adjuntar
                 </Button>
             )}
-        </>
+        </div>
     );
 }
 
 interface AttachmentGridProps {
     files: Adjunto[];
     onRemove: (id: string) => void;
+    compact?: boolean;
 }
 
-export function PhotoGrid({ files, onRemove }: AttachmentGridProps) {
+export function PhotoGrid({ files, onRemove, compact }: AttachmentGridProps) {
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
     if (!files || files.length === 0) return null;
 
     return (
         <>
-            <div className="grid grid-cols-6 md:grid-cols-8 lg:grid-cols-12 gap-2 mt-2">
+            <div className={compact
+                ? "flex flex-wrap gap-1 mt-1"
+                : "grid grid-cols-6 md:grid-cols-8 lg:grid-cols-12 gap-2 mt-2"
+            }>
                 {files.map(file => (
                     <div
                         key={file.id}
-                        className="relative group border rounded-lg overflow-hidden bg-muted aspect-square flex items-center justify-center p-1 cursor-pointer hover:border-primary transition-colors"
+                        className={compact
+                            ? "relative group border rounded-md overflow-hidden bg-muted h-[50px] w-[50px] flex items-center justify-center p-0.5 cursor-pointer hover:border-primary transition-all"
+                            : "relative group border rounded-lg overflow-hidden bg-muted aspect-square flex items-center justify-center p-1 cursor-pointer hover:border-primary transition-all"
+                        }
                         title="Click para ampliar"
-                        onClick={() => setSelectedImage(file.thumbnail || file.url)}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedImage(file.thumbnail || file.url);
+                        }}
                     >
                         {file.type === 'pdf' && !file.thumbnail ? (
                             <div className="flex flex-col items-center justify-center text-center p-2">
-                                <FileText className="w-8 h-8 text-primary mb-1" />
-                                <span className="text-[10px] leading-tight line-clamp-2 break-all">{file.name}</span>
+                                <FileText className={compact ? "w-5 h-5 text-primary" : "w-8 h-8 text-primary mb-1"} />
+                                {!compact && <span className="text-[10px] leading-tight line-clamp-2 break-all">{file.name}</span>}
                             </div>
                         ) : (
                             <img
@@ -169,17 +219,17 @@ export function PhotoGrid({ files, onRemove }: AttachmentGridProps) {
                             />
                         )}
 
-                        <div className="absolute top-1 right-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="absolute top-0.5 right-0.5 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
                             <Button
                                 variant="destructive"
                                 size="icon"
-                                className="h-6 w-6 z-10"
+                                className={compact ? "h-3.5 w-3.5 z-10 p-0" : "h-6 w-6 z-10"}
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     onRemove(file.id);
                                 }}
                             >
-                                <X className="h-3 w-3" />
+                                <X className={compact ? "h-2 w-2" : "h-3 w-3"} />
                             </Button>
                         </div>
                     </div>
@@ -187,9 +237,12 @@ export function PhotoGrid({ files, onRemove }: AttachmentGridProps) {
             </div>
 
             <Dialog open={!!selectedImage} onOpenChange={(open) => !open && setSelectedImage(null)}>
-                <DialogContent className="max-w-[90vw] max-h-[90vh] p-0 bg-transparent border-none shadow-none flex items-center justify-center pointer-events-none">
+                <DialogContent
+                    className="max-w-[90vw] max-h-[90vh] p-0 bg-transparent border-none shadow-none flex items-center justify-center pointer-events-none"
+                    onClick={(e) => e.stopPropagation()}
+                >
                     {selectedImage && (
-                        <div className="relative pointer-events-auto">
+                        <div className="relative pointer-events-auto" onClick={(e) => e.stopPropagation()}>
                             <img
                                 src={selectedImage}
                                 alt="Vista ampliada"
@@ -199,7 +252,10 @@ export function PhotoGrid({ files, onRemove }: AttachmentGridProps) {
                                 variant="secondary"
                                 size="icon"
                                 className="absolute -top-2 -right-2 rounded-full shadow-lg"
-                                onClick={() => setSelectedImage(null)}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedImage(null);
+                                }}
                             >
                                 <X className="h-4 w-4" />
                             </Button>

@@ -100,16 +100,8 @@ function App() {
 
           <TabsContent value="editor" className="space-y-6">
             <BudgetHeader />
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-              <div className="lg:col-span-3">
-                <LinesTable />
-              </div>
-              <div>
-                <div className="sticky top-20">
-                  <TotalsSummary />
-                </div>
-              </div>
-            </div>
+            <LinesTable />
+            <TotalsSummary />
           </TabsContent>
 
           <TabsContent value="config">

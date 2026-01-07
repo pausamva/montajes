@@ -39,7 +39,8 @@ const createEmptyBudget = (): Presupuesto => ({
         cp: '',
         contacto: '',
         observaciones: '',
-        montadorId: ''
+        montadorId: '',
+        responsable: ''
     },
     lineas: [],
     fotosGenerales: []

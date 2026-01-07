@@ -51,6 +51,7 @@ export interface Cabecera {
     contacto: string;
     observaciones: string;
     montadorId: string;
+    responsable: string;
 }
 
 export interface Presupuesto {
