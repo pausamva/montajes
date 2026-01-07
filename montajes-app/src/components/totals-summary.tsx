@@ -47,7 +47,7 @@ export function TotalsSummary() {
                             <span>{defaultAssemblerPerc}%</span>
                         </div>
                         <div className="flex justify-between font-medium">
-                            <span>A pagar montador</span>
+                            <span>A pagar montador (SIN IVA)</span>
                             <span>{assemblerTotal.toFixed(2)} €</span>
                         </div>
                     </div>

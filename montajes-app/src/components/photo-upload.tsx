@@ -53,9 +53,9 @@ export function PhotoUpload({ onFileAdd, trigger }: AttachmentUploadProps) {
             const pdf = await loadingTask.promise;
             const page = await pdf.getPage(1);
 
-            // Optimize: Limit width to 1024px for better quality (as requested)
+            // Optimize: Limit width to 400px for better quality (but smaller for storage)
             const originalViewport = page.getViewport({ scale: 1.0 });
-            const desiredWidth = 1024;
+            const desiredWidth = 400;
             const scale = Math.min(1.0, desiredWidth / originalViewport.width);
             const viewport = page.getViewport({ scale });
 
@@ -97,8 +97,8 @@ export function PhotoUpload({ onFileAdd, trigger }: AttachmentUploadProps) {
             url = thumbnail;
         } else {
             // Optimize regular image
-            // Max width 1024px, Quality 0.8
-            url = await optimizeImage(file, 1024, 0.8);
+            // Max width 400px, Quality 0.8
+            url = await optimizeImage(file, 400, 0.8);
         }
 
         if (!url) return;
@@ -119,6 +119,7 @@ export function PhotoUpload({ onFileAdd, trigger }: AttachmentUploadProps) {
                 className="hidden"
                 ref={fileInputRef}
                 onChange={handleFileChange}
+                title="Seleccionar imagen o PDF"
             />
 
             {trigger ? (
@@ -147,7 +148,7 @@ export function PhotoGrid({ files, onRemove }: AttachmentGridProps) {
 
     return (
         <>
-            <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2 mt-2">
+            <div className="grid grid-cols-6 md:grid-cols-8 lg:grid-cols-12 gap-2 mt-2">
                 {files.map(file => (
                     <div
                         key={file.id}

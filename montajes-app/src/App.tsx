@@ -50,9 +50,15 @@ function App() {
     <div className="min-h-screen bg-background text-foreground flex flex-col font-sans">
       <header className="border-b bg-card sticky top-0 z-10 transition-colors duration-300">
         <div className="container mx-auto py-3 px-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-xl font-bold tracking-tight">Montajes</span>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">v2.0</span>
+          <div className="flex items-center gap-3">
+            <div className="bg-white/10 dark:bg-white/5 p-1.5 rounded-xl backdrop-blur-sm border border-white/10">
+              <img src="/logo.png" alt="Reprografía BV" className="h-20 w-20 object-contain drop-shadow-lg" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-xl font-bold tracking-tight leading-none bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">Montajes</span>
+              <span className="text-[10px] font-medium opacity-50 uppercase tracking-widest mt-0.5">Reprografía BV</span>
+            </div>
+            <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground self-start mt-1">v2.0</span>
           </div>
           <div className="flex gap-2">
             <Button variant="ghost" size="icon" onClick={toggleTheme} title={isDark ? "Modo Claro" : "Modo Oscuro"}>
@@ -67,9 +73,15 @@ function App() {
               <FileDown className="w-4 h-4 mr-2" />
               Guardar
             </Button>
-            <Button variant="outline" size="sm" onClick={handleExport} title="PDF">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExport}
+              title="PDF"
+              className="bg-orange-100 hover:bg-orange-200 border-orange-200 text-orange-900 dark:bg-orange-950 dark:hover:bg-orange-900 dark:border-orange-800 dark:text-orange-100"
+            >
               <Printer className="w-4 h-4 mr-2" />
-              Orden de Compra
+              Imprimir y guardar Orden de Compra
             </Button>
             <Button size="sm" onClick={resetBudget} variant="default">
               <Plus className="w-4 h-4 mr-2" />

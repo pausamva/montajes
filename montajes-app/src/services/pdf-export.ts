@@ -41,7 +41,20 @@ export const generatePurchaseOrderPDF = (budget: Presupuesto) => {
         doc.text(`Dirección: ${cabecera.direccion}`, rightX, y);
         if (cabecera.ciudad) doc.text(`Ciudad: ${cabecera.ciudad}`, rightX, y + 6);
     }
-    y += 20;
+    y += 18;
+
+    // Observations (Moved to Header)
+    if (cabecera.observaciones) {
+        doc.setFont("helvetica", "bold");
+        doc.text("Observaciones:", margin, y);
+        y += 5;
+        doc.setFont("helvetica", "normal");
+        const splitObs = doc.splitTextToSize(cabecera.observaciones, pageWidth - (margin * 2));
+        doc.text(splitObs, margin, y);
+        y += (splitObs.length * 5) + 5;
+    }
+
+    y += 10;
 
     // -- GENERAL PHOTOS / DOCS --
     if (fotosGenerales && fotosGenerales.length > 0) {
@@ -222,17 +235,8 @@ export const generatePurchaseOrderPDF = (budget: Presupuesto) => {
     // -- FOOTER / OBSERVATIONS / TOTAL --
     if (y > 240) { doc.addPage(); y = 20; }
 
-    // Observations
-    if (cabecera.observaciones) {
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(10);
-        doc.text("Observaciones:", margin, y);
-        y += 5;
-        doc.setFont("helvetica", "normal");
-        const splitObs = doc.splitTextToSize(cabecera.observaciones, pageWidth - (margin * 2));
-        doc.text(splitObs, margin, y);
-        y += (splitObs.length * 5) + 10;
-    }
+    // Observations removed from here (moved to header)
+    if (y > 240) { doc.addPage(); y = 20; }
 
     // Total
     doc.setDrawColor(0);
@@ -243,15 +247,16 @@ export const generatePurchaseOrderPDF = (budget: Presupuesto) => {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
     // Requirement: No percentage shown, just total
-    doc.text(`TOTAL A PAGAR MONTADOR: ${assemblerTotal.toFixed(2)} €`, margin, y);
+    doc.text(`TOTAL A PAGAR MONTADOR (SIN IVA): ${assemblerTotal.toFixed(2)} €`, margin, y);
 
     // -- SAVE --
     const safeNumero = (cabecera.numero || 'Borrador').replace(/[^a-z0-9]/gi, '_');
     const fileName = `Orden_Montaje_${safeNumero}.pdf`;
 
     const originalBlob = doc.output('blob');
-    const blob = new Blob([originalBlob], { type: 'application/octet-stream' });
-    const url = URL.createObjectURL(blob);
+    const url = URL.createObjectURL(originalBlob);
+
+    // Download
     const a = document.createElement('a');
     a.href = url;
     a.download = fileName;
@@ -259,7 +264,15 @@ export const generatePurchaseOrderPDF = (budget: Presupuesto) => {
     a.click();
     document.body.removeChild(a);
 
+    // Print
+    const printWindow = window.open(url, '_blank');
+    if (printWindow) {
+        printWindow.addEventListener('load', () => {
+            printWindow.print();
+        });
+    }
+
     setTimeout(() => {
         URL.revokeObjectURL(url);
-    }, 100);
+    }, 1000); // Increased timeout to ensure print window can load
 };
